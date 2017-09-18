@@ -29,6 +29,7 @@
 #include <sstream>
 #include <string>
 #include <map>
+#include <numeric>
 
 #include "common.h"
 #include "document.h"
@@ -38,6 +39,21 @@
 #include "cmd_flags.h"
 
 namespace learning_lda {
+
+
+
+class LDADoc : public LDADocument
+{
+public:
+  LDADoc(const DocumentWordTopicsPB& topics, int num_topics, size_t id) : LDADocument(topics,num_topics)
+  {id_ = id;}
+  ~LDADoc(){}
+  size_t GetDocId(){return id_;}
+private:
+  size_t id_;
+};
+
+
 
 using std::ifstream;
 using std::ofstream;
@@ -53,6 +69,7 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
   word_index_map->clear();
   ifstream fin(corpus_file.c_str());
   string line;
+  size_t docId = 0;
   while (getline(fin, line)) {  // Each line is a training document.
     if (line.size() > 0 &&      // Skip empty lines.
         line[0] != '\r' &&      // Skip empty lines.
@@ -77,8 +94,9 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
         }
         document.add_wordtopics(word, word_index, topics);
       }
-      corpus->push_back(new LDADocument(document, num_topics));
+      corpus->push_back(new LDADoc(document, num_topics, docId));
     }
+    docId++;
   }
   return corpus->size();
 }
@@ -90,6 +108,33 @@ void FreeCorpus(LDACorpus* corpus) {
     if (*iter != NULL) {
       delete *iter;
       *iter = NULL;
+    }
+  }
+}
+
+void DumpDocTopicDistribution(ofstream& doctopic_outfile, LDACorpus& corpus, bool sparse = false)
+{
+  for (list<LDADocument*>::const_iterator iterator = corpus.begin();
+       iterator != corpus.end(); ++iterator)
+  {
+    const vector<int64>& doc_topic = (*iterator)->topic_distribution();
+    LDADoc* docPtr = dynamic_cast<LDADoc*>(*iterator);
+    size_t docId = docPtr->GetDocId();
+    size_t topicNb = doc_topic.size();
+    doctopic_outfile << docId << "\t";
+    double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
+
+    for(int topicIdx = 0; topicIdx < doc_topic.size(); topicIdx++)
+    {
+      if(sparse)
+      {
+        if(doc_topic[topicIdx] > 0)
+          doctopic_outfile  << topicIdx << ":" << doc_topic[topicIdx] / sum
+                            << ((topicIdx < topicNb - 1) ? " " : "\n");
+      }
+      else
+        doctopic_outfile  << doc_topic[topicIdx] / sum
+                          << ((topicIdx < topicNb - 1) ? " " : "\n");
     }
   }
 }
@@ -138,6 +183,11 @@ int main(int argc, char** argv) {
   }
   accum_model.AverageModel(
       flags.total_iterations_ - flags.burn_in_iterations_);
+
+
+  std::ofstream foutDoctopic(flags.doc_model_file_.c_str());
+  DumpDocTopicDistribution(foutDoctopic,corpus);
+  
 
   FreeCorpus(&corpus);
 
