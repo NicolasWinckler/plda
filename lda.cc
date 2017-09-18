@@ -161,6 +161,7 @@ int main(int argc, char** argv) {
 // must use old c++ currently : issue with c++11 and their check macros in common.h
     int docIdx = 0;
     std::ofstream fout_doctopic("Doc_topic_table.txt");
+    std::cout << "Document number = " << corpus.size() << std::endl;
     for (list<LDADocument*>::const_iterator iterator = corpus.begin();
          iterator != corpus.end();
          ++iterator)
