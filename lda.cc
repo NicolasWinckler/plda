@@ -139,6 +139,25 @@ int main(int argc, char** argv) {
   accum_model.AverageModel(
       flags.total_iterations_ - flags.burn_in_iterations_);
 
+
+  int docIdx = 0;
+  std::ofstream fout_doctopic("Doc_topic_table.txt");
+  for (const auto& doc : corpus)
+  {
+    auto topic_distrib = doc->topic_distribution();
+    fout_doctopic << docIdx << "\t";
+    std::size_t topicIdx = 0;
+    std::size_t  topicNb = topic_distrib.size();
+    for (const auto& topic_count : topic_distrib)
+    {
+      fout_doctopic << topic_count
+                    << ((topicIdx < topicNb - 1) ? " " : "\n");
+      topicIdx++;
+    }
+
+    docIdx++;
+  }
+
   FreeCorpus(&corpus);
 
   std::ofstream fout(flags.model_file_.c_str());
