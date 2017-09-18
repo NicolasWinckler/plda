@@ -53,7 +53,9 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
   word_index_map->clear();
   ifstream fin(corpus_file.c_str());
   string line;
+    int count_line=0;
   while (getline(fin, line)) {  // Each line is a training document.
+      count_line++;
     if (line.size() > 0 &&      // Skip empty lines.
         line[0] != '\r' &&      // Skip empty lines.
         line[0] != '\n' &&      // Skip empty lines.
@@ -80,6 +82,7 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
       corpus->push_back(new LDADocument(document, num_topics));
     }
   }
+    std::cout << "Number of doc while reading input = " << count_line << "\n";
   return corpus->size();
 }
 
