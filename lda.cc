@@ -140,23 +140,41 @@ int main(int argc, char** argv) {
       flags.total_iterations_ - flags.burn_in_iterations_);
 
 
-  int docIdx = 0;
-  std::ofstream fout_doctopic("Doc_topic_table.txt");
-  for (const auto& doc : corpus)
-  {
-    auto topic_distrib = doc->topic_distribution();
-    fout_doctopic << docIdx << "\t";
-    std::size_t topicIdx = 0;
-    std::size_t  topicNb = topic_distrib.size();
-    for (const auto& topic_count : topic_distrib)
-    {
-      fout_doctopic << topic_count
-                    << ((topicIdx < topicNb - 1) ? " " : "\n");
-      topicIdx++;
-    }
+//  int docIdx = 0;
+//  std::ofstream fout_doctopic("Doc_topic_table.txt");
+//  for (const auto& doc : corpus)
+//  {
+//    auto topic_distrib = doc->topic_distribution();
+//    fout_doctopic << docIdx << "\t";
+//    std::size_t topicIdx = 0;
+//    std::size_t  topicNb = topic_distrib.size();
+//    for (const auto& topic_count : topic_distrib)
+//    {
+//      fout_doctopic << topic_count
+//                    << ((topicIdx < topicNb - 1) ? " " : "\n");
+//      topicIdx++;
+//    }
+//
+//    docIdx++;
+//  }
 
-    docIdx++;
-  }
+// must use old c++ currently : issue with c++11 and their check macros in common.h
+    int docIdx = 0;
+    std::ofstream fout_doctopic("Doc_topic_table.txt");
+    for (list<LDADocument*>::const_iterator iterator = corpus.begin();
+         iterator != corpus.end();
+         ++iterator)
+    {
+        const vector<int64>& doc_topic = (*iterator)->topic_distribution();
+        std::size_t  topicNb = doc_topic.size();
+        fout_doctopic << docIdx << "\t";
+        for(int topicIdx = 0; topicIdx < doc_topic.size(); topicIdx++)
+        {
+            fout_doctopic << doc_topic[topicIdx]
+                          << ((topicIdx < topicNb - 1) ? " " : "\n");
+        }
+        docIdx++;
+    }
 
   FreeCorpus(&corpus);
 

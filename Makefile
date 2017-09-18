@@ -1,7 +1,8 @@
 CC=g++
 MPICC=mpicxx
 
-CFLAGS=-O3 -std=c++11 -Wall -Wno-sign-compare
+#CFLAGS=-O3 -std=c++11 -Wall -Wno-sign-compare
+CFLAGS=-O3 -Wall -Wno-sign-compare
 OBJ_PATH = ./obj
 
 all: lda infer mpi_lda
