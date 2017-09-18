@@ -33,6 +33,7 @@ class LDACmdLineFlags {
   double      beta_;
   std::string training_data_file_;
   std::string model_file_;
+  std::string doc_model_file_;
   std::string inference_data_file_;
   std::string inference_result_file_;
   int         burn_in_iterations_;

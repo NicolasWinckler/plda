@@ -29,6 +29,7 @@ LDACmdLineFlags::LDACmdLineFlags() {
   inference_data_file_ = "";
   inference_result_file_ = "";
   model_file_ = "";
+  doc_model_file_ = "";
   burn_in_iterations_ = -1;
   total_iterations_ = -1;
   compute_likelihood_ = "false";
@@ -50,6 +51,9 @@ void LDACmdLineFlags::ParseCmdFlags(int argc, char** argv) {
       ++i;
     } else if (0 == strcmp(argv[i], "--model_file")) {
       model_file_ = argv[i+1];
+      ++i;
+    } else if (0 == strcmp(argv[i], "--doc_model_file")) {
+      doc_model_file_ = argv[i+1];
       ++i;
     } else if (0 == strcmp(argv[i], "--inference_data_file")) {
       inference_data_file_ = argv[i+1];
