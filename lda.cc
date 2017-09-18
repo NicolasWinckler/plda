@@ -29,6 +29,7 @@
 #include <sstream>
 #include <string>
 #include <map>
+#include <numeric>
 
 #include "common.h"
 #include "document.h"
@@ -53,9 +54,7 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
   word_index_map->clear();
   ifstream fin(corpus_file.c_str());
   string line;
-    int count_line=0;
   while (getline(fin, line)) {  // Each line is a training document.
-      count_line++;
     if (line.size() > 0 &&      // Skip empty lines.
         line[0] != '\r' &&      // Skip empty lines.
         line[0] != '\n' &&      // Skip empty lines.
@@ -82,7 +81,6 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
       corpus->push_back(new LDADocument(document, num_topics));
     }
   }
-    std::cout << "Number of doc while reading input = " << count_line << "\n";
   return corpus->size();
 }
 
@@ -96,6 +94,29 @@ void FreeCorpus(LDACorpus* corpus) {
     }
   }
 }
+
+    void DumpDocTopicDistribution(ofstream& doctopic_outfile, LDACorpus& corpus)
+    {
+      // Notes docIdx get wrong if empty doc occur in the input training corpus.
+      // fix: Need to add doc idx attribute in LDADocument to keep track of documents
+      int docIdx = 0;
+
+      for (list<LDADocument*>::const_iterator iterator = corpus.begin();
+           iterator != corpus.end(); ++iterator)
+      {
+        const vector<int64>& doc_topic = (*iterator)->topic_distribution();
+        size_t  topicNb = doc_topic.size();
+        doctopic_outfile << docIdx << "\t";
+        double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
+
+        for(int topicIdx = 0; topicIdx < doc_topic.size(); topicIdx++)
+        {
+          doctopic_outfile  << doc_topic[topicIdx] / sum
+                            << ((topicIdx < topicNb - 1) ? " " : "\n");
+        }
+        docIdx++;
+      }
+    }
 
 }  // namespace learning_lda
 
@@ -164,17 +185,18 @@ int main(int argc, char** argv) {
 // must use old c++ currently : issue with c++11 and their check macros in common.h
     int docIdx = 0;
     std::ofstream fout_doctopic("Doc_topic_table.txt");
-    std::cout << "Document number = " << corpus.size() << std::endl;
+
     for (list<LDADocument*>::const_iterator iterator = corpus.begin();
-         iterator != corpus.end();
-         ++iterator)
+         iterator != corpus.end(); ++iterator)
     {
         const vector<int64>& doc_topic = (*iterator)->topic_distribution();
         std::size_t  topicNb = doc_topic.size();
         fout_doctopic << docIdx << "\t";
+        double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
+
         for(int topicIdx = 0; topicIdx < doc_topic.size(); topicIdx++)
         {
-            fout_doctopic << doc_topic[topicIdx]
+            fout_doctopic << doc_topic[topicIdx] / sum
                           << ((topicIdx < topicNb - 1) ? " " : "\n");
         }
         docIdx++;
