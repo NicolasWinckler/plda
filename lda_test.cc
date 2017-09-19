@@ -94,7 +94,7 @@ int LoadAndInitTrainingCorpus(const string& corpus_file,
         }
         document.add_wordtopics(word, word_index, topics);
       }
-      corpus->push_back(new LDADoc(document, num_topics, docId));
+      corpus->push_back(new LDADoc(document, num_topics, docId + 1));
     }
     docId++;
   }
