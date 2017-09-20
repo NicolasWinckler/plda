@@ -55,8 +55,8 @@ using std::sort;
 using std::string;
 using learning_lda::LDADocument;
 
-namespace learning_lda {
-
+namespace learning_lda
+{
     class LDADoc : public LDADocument
     {
     public:
@@ -68,79 +68,89 @@ namespace learning_lda {
         size_t id_;
     };
 
-    void DumpDocTopicDistribution(ofstream& doctopic_outfile, LDACorpus& corpus, bool sparse = false)
+    void mpi_CorpusPadding(LDACorpus& corpus)
     {
-        for (list<LDADocument*>::const_iterator iterator = corpus.begin();
-             iterator != corpus.end(); ++iterator)
+        int corpusSize_local = corpus.size();
+        int maxCorpusSize_gobal = 0;
+        MPI_Allreduce(&corpusSize_local, &maxCorpusSize_gobal, 1, MPI_INT,
+                      MPI_MAX, MPI_COMM_WORLD);
+        while(corpus.size() < maxCorpusSize_gobal)
         {
-            const vector<int64>& doc_topic = (*iterator)->topic_distribution();
-            LDADoc* docPtr = dynamic_cast<LDADoc*>(*iterator);
-            size_t docId = docPtr->GetDocId();
-            size_t topicNb = doc_topic.size();
-            doctopic_outfile << docId << "\t";
-            double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
-
-            for(int topicIdx = 0; topicIdx < doc_topic.size(); topicIdx++)
-            {
-                if(sparse)
-                {
-                    if(doc_topic[topicIdx] > 0)
-                        doctopic_outfile  << topicIdx << ":" << doc_topic[topicIdx] / sum
-                                          << ((topicIdx < topicNb - 1) ? " " : "\n");
-                }
-                else
-                    doctopic_outfile  << doc_topic[topicIdx] / sum
-                                      << ((topicIdx < topicNb - 1) ? " " : "\n");
-            }
+            corpus.push_back(NULL);
         }
     }
 
-
-
-
-    void mpi_DumpDocTopicDistribution(int rank, int worldSize, ofstream& doctopic_outfile, LDACorpus& corpus, bool sparse = false)
+    void mpi_DumpDocTopicDistribution(std::string doctopicFileName, LDACorpus& corpus, int topicNb,
+                                      int rank, int worldSize, bool sparse = false, bool normalized = true)
     {
+        mpi_CorpusPadding(corpus);
+        int counter = 0;
+        int docId = -1;
+        int rowSize = topicNb +1;// +1 for the docId
+        std::ofstream doctopic_outfile;
+        if(rank == 0)
+            doctopic_outfile.open(doctopicFileName.c_str());
+
         for (list<LDADocument*>::const_iterator iterator = corpus.begin();
              iterator != corpus.end(); ++iterator)
         {
-            const vector<int64>& doc_topic = (*iterator)->topic_distribution();
-            LDADoc* docPtr = dynamic_cast<LDADoc*>(*iterator);
-            size_t docId = docPtr->GetDocId();
-            size_t topicNb = doc_topic.size();
-            doctopic_outfile << docId << "\t";
-            double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
-
-            // (1 + K) x Ndoc 
+            // (1 + K) x Ndoc
             std::vector<int> doctopic_global;
             std::vector<int> doctopic_local;
-            doctopic_local.push_back(docId);
-            doctopic_local.insert( doctopic_local.end(), doc_topic.begin(), doc_topic.end() );
-            if(rank == 0)
-                doctopic_global.resize(worldSize*(topicNb + 1));
+            if(*iterator)
+            {
+                const vector<int64> &doc_topic = (*iterator)->topic_distribution();
+                LDADoc *docPtr = dynamic_cast<LDADoc *>(*iterator);
+                docId = docPtr->GetDocId();
 
-            MPI_Gather(
-                &doctopic_local.front(), topicNb+1, MPI_INT,
-                &doctopic_global.front(), topicNb+1, MPI_INT,
-                0, MPI_COMM_WORLD);
+                doctopic_local.push_back(docId);
+                doctopic_local.insert(doctopic_local.end(), doc_topic.begin(), doc_topic.end());
+            }
+            else
+            {
+                doctopic_local.resize(topicNb + 1);
+                docId = -1;
+                doctopic_local[0] = docId;
+            }
 
             if(rank == 0)
-                for(int d = 0; d < doctopic_global.size(); d+=topicNb+1)
+                doctopic_global.resize(worldSize*rowSize);
+
+            //MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Gather(&doctopic_local.front(),  rowSize, MPI_INT,
+                       &doctopic_global.front(), rowSize, MPI_INT,
+                       0, MPI_COMM_WORLD);
+            counter++;
+
+            if(rank == 0)
+            {
+                for (int d = 0; d < doctopic_global.size(); d += topicNb + 1)
                 {
                     int id = doctopic_global[d];
-                    for(int topicIdx = 1; topicIdx <= topicNb; topicIdx++)
+                    if(id < 0)
+                        continue;
+                    double sum = 1;
+                    if(normalized)
+                        sum = std::accumulate(doctopic_global.begin()+d+1, doctopic_global.begin()+d+rowSize, 0.0);
+
+                    doctopic_outfile << id << "\t";
+                    for (int topicIdx = 1; topicIdx <= topicNb; topicIdx++)
                     {
-                        if(sparse)
+                        if (sparse)
                         {
-                            if(doc_topic[topicIdx] > 0)
-                                doctopic_outfile  << id << ":" << doctopic_global[d+topicIdx] / sum
-                                                  << ((topicIdx < topicNb) ? " " : "\n");
+                            if (doctopic_global[d + topicIdx] > 0)
+                                doctopic_outfile << topicIdx-1 << ":" << doctopic_global[d + topicIdx] / sum
+                                                 << ((topicIdx < topicNb) ? " " : "\n");
                         }
                         else
-                            doctopic_outfile  << doctopic_global[d+topicIdx] / sum
-                                              << ((topicIdx < topicNb) ? " " : "\n");
+                            doctopic_outfile << doctopic_global[d + topicIdx] / sum
+                                             << ((topicIdx < topicNb) ? " " : "\n");
                     }
                 }
+            }
         }
+        if(doctopic_outfile.is_open())
+            doctopic_outfile.close();
     }
 
 
@@ -218,7 +228,7 @@ namespace learning_lda {
                 line[0] != '#') {       // Skip comment lines.
                 istringstream ss(line);
                 if (index % pnum == myid) {
-                    std::cout << "process " << myid << " docid = " << docID << " index = " << index << "\n";
+                    //std::cout << "process " << myid << " docid = " << docID << " index = " << index << "\n";
                     // This is a document that I need to store in local memory.
                     DocumentWordTopicsPB document;
                     string word;
@@ -290,7 +300,6 @@ int main(int argc, char** argv) {
                                                    myid, pnum, &corpus, &allwords), 0);
     std::cout << "Training data loaded" << std::endl;
     // Make vocabulary words sorted and give each word an int index.
-    
 
 
     vector<string> sorted_words;
@@ -334,22 +343,16 @@ int main(int argc, char** argv) {
     ParallelLDAModel model(flags.num_topics_, word_index_map);
     model.ComputeAndAllReduce(corpus);
 
-
-    // std::vector<int> rcvvec;
-    // int corpusSize_local = corpus.size();
-    // int corpusSize_gobal = 0;
-
-    // MPI_Reduce(&corpusSize_local, &corpusSize_gobal, 1, MPI_INT,
-    //                       MPI_SUM, 0, MPI_COMM_WORLD);
-
-
-    if (myid == 0) {
+    // dump word topic matrix
+    if (myid == 0)
+    {
         std::ofstream fout(flags.model_file_.c_str());
         model.AppendAsString(fout);
-
-        std::ofstream foutDoctopic(flags.doc_model_file_.c_str());
-        DumpDocTopicDistribution(foutDoctopic,corpus);
     }
+
+    // dump doc topic matrix
+    mpi_DumpDocTopicDistribution(flags.doc_model_file_, corpus, flags.num_topics_, myid, pnum);
+
     FreeCorpus(&corpus);
     MPI_Finalize();
     return 0;
