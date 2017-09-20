@@ -97,6 +97,53 @@ namespace learning_lda {
 
 
 
+
+    void mpi_DumpDocTopicDistribution(int rank, int worldSize, ofstream& doctopic_outfile, LDACorpus& corpus, bool sparse = false)
+    {
+        for (list<LDADocument*>::const_iterator iterator = corpus.begin();
+             iterator != corpus.end(); ++iterator)
+        {
+            const vector<int64>& doc_topic = (*iterator)->topic_distribution();
+            LDADoc* docPtr = dynamic_cast<LDADoc*>(*iterator);
+            size_t docId = docPtr->GetDocId();
+            size_t topicNb = doc_topic.size();
+            doctopic_outfile << docId << "\t";
+            double sum = std::accumulate(doc_topic.begin(), doc_topic.end(), 0.0);
+
+            // (1 + K) x Ndoc 
+            std::vector<int> doctopic_global;
+            std::vector<int> doctopic_local;
+            doctopic_local.push_back(docId);
+            doctopic_local.insert( doctopic_local.end(), doc_topic.begin(), doc_topic.end() );
+            if(rank == 0)
+                doctopic_global.resize(worldSize*(topicNb + 1));
+
+            MPI_Gather(
+                &doctopic_local.front(), topicNb+1, MPI_INT,
+                &doctopic_global.front(), topicNb+1, MPI_INT,
+                0, MPI_COMM_WORLD);
+
+            if(rank == 0)
+                for(int d = 0; d < doctopic_global.size(); d+=topicNb+1)
+                {
+                    int id = doctopic_global[d];
+                    for(int topicIdx = 1; topicIdx <= topicNb; topicIdx++)
+                    {
+                        if(sparse)
+                        {
+                            if(doc_topic[topicIdx] > 0)
+                                doctopic_outfile  << id << ":" << doctopic_global[d+topicIdx] / sum
+                                                  << ((topicIdx < topicNb) ? " " : "\n");
+                        }
+                        else
+                            doctopic_outfile  << doctopic_global[d+topicIdx] / sum
+                                              << ((topicIdx < topicNb) ? " " : "\n");
+                    }
+                }
+        }
+    }
+
+
 // A wrapper of MPI_Allreduce. If the vector is over 32M, we allreduce part
 // after part. This will save temporary memory needed.
     void AllReduceTopicDistribution(int64* buf, int count) {
@@ -243,6 +290,9 @@ int main(int argc, char** argv) {
                                                    myid, pnum, &corpus, &allwords), 0);
     std::cout << "Training data loaded" << std::endl;
     // Make vocabulary words sorted and give each word an int index.
+    
+
+
     vector<string> sorted_words;
     map<string, int> word_index_map;
     for (set<string>::const_iterator iter = allwords.begin();
@@ -285,7 +335,13 @@ int main(int argc, char** argv) {
     model.ComputeAndAllReduce(corpus);
 
 
-    std::vector<int> rcvvec;
+    // std::vector<int> rcvvec;
+    // int corpusSize_local = corpus.size();
+    // int corpusSize_gobal = 0;
+
+    // MPI_Reduce(&corpusSize_local, &corpusSize_gobal, 1, MPI_INT,
+    //                       MPI_SUM, 0, MPI_COMM_WORLD);
+
 
     if (myid == 0) {
         std::ofstream fout(flags.model_file_.c_str());

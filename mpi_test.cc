@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     int p;          //number of MPI processes
     int tag=50;     //Tag for message
 
-    int X = 4;
+    int X = 32;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
