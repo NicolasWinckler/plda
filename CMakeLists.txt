@@ -10,14 +10,8 @@ if (NOT MPI_CXX_FOUND)
     message(STATUS "WARNING: MPI_CXX not found... Parallel LDA version will not be built")
 endif ()
 
-set(INCLUDE_DIRECTORIES
-        ${CMAKE_SOURCE_DIR}/include
-        ${MPI_CXX_INCLUDE_PATH}
-)
-include_directories(${INCLUDE_DIRECTORIES})
-
-set(DEPENDENCIES ${MPI_CXX_LIBRARIES})
-
+set(INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include)
+set(DEPENDENCIES )
 set(SOURCE_FILES
         src/accumulative_model.cc
         src/cmd_flags.cc
@@ -25,6 +19,14 @@ set(SOURCE_FILES
         src/document.cc
         src/model.cc
         src/sampler.cc)
+
+if (MPI_CXX_FOUND)
+   set(INCLUDE_DIRECTORIES ${MPI_CXX_INCLUDE_PATH} ${INCLUDE_DIRECTORIES})
+   set(DEPENDENCIES ${MPI_CXX_LIBRARIES} ${DEPENDENCIES})
+endif ()
+
+include_directories(${INCLUDE_DIRECTORIES})
+
 
 # ############################################################
 # lda : dump word-topic model only (sequential)
