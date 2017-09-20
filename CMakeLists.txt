@@ -3,7 +3,7 @@ project(plda)
 
 set(CMAKE_CXX_STANDARD 11)
 if (NOT MPI_CXX_FOUND)
-    find_package(MPI REQUIRED)
+    find_package(MPI)
 endif ()
 
 if (NOT MPI_CXX_FOUND)
