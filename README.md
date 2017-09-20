@@ -34,7 +34,10 @@ Parallel lda must be run in linux environment with g++ compiler and [mpich](http
     ```
     git clone https://github.com/obdg/plda.git  
     cd plda  
-    make all
+    mkdir build
+    cd build
+    cmake ..
+    make -j4
     ```
 
 * You will see a binary file `lda`, `mpi_lda` and `infer` generated in the folder
