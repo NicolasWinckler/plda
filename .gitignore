@@ -3,4 +3,5 @@ lda
 infer
 mpi_lda
 hosts
+build/
 *model.txt
