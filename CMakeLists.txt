@@ -50,18 +50,18 @@ if (MPI_CXX_FOUND)
     target_link_libraries(${EXE_NAME} ${DEPENDENCIES})
 endif()
 # ############################################################
-# lda_test : dump word topic and doc-topic model (sequential)
-set(SRCS lda_test.cc)
-set(EXE_NAME lda_test)
+# lda_with_doc : dump word topic and doc-topic model (sequential)
+set(SRCS lda_with_doc.cc)
+set(EXE_NAME lda_with_doc)
 
 add_executable(${EXE_NAME} ${SRCS} ${SOURCE_FILES})
 target_link_libraries(${EXE_NAME} ${DEPENDENCIES})
 
 # ############################################################
-# mpi_lda_test : mpi version of lda_test (parallel)
+# mpi_lda_with_doc : mpi version of lda_with_doc (parallel)
 if (MPI_CXX_FOUND)
-    set(SRCS mpi_lda_test.cc)
-    set(EXE_NAME mpi_lda_test)
+    set(SRCS mpi_lda_with_doc.cc)
+    set(EXE_NAME mpi_lda_with_doc)
 
     add_executable(${EXE_NAME} ${SRCS} ${SOURCE_FILES})
     target_link_libraries(${EXE_NAME} ${DEPENDENCIES})
