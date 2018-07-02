@@ -36,6 +36,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <numeric>
 
 #include "common.h"
 #include "document.h"
